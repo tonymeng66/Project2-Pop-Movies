@@ -309,7 +309,7 @@ public class MovieSyncAdapter extends AbstractThreadedSyncAdapter {
                 ContentValues[] cvArray = new ContentValues[cVVector.size()];
                 cVVector.toArray(cvArray);
                 if (sort_by == "popularity.desc") {
-                    deleted = mContext.getContentResolver().delete(MovieContract.PopularEntry.CONTENT_URI,null,null);
+                    deleted = mContext.getContentResolver().delete(MovieContract.PopularEntry.CONTENT_URI, null, null);
                     inserted = mContext.getContentResolver().bulkInsert(MovieContract.PopularEntry.CONTENT_URI, cvArray);
                 }
                 if (sort_by == "vote_average.desc") {
@@ -339,7 +339,11 @@ public class MovieSyncAdapter extends AbstractThreadedSyncAdapter {
         try{
             JSONObject movieInfoJSON = new JSONObject(movieJsonStr);
 
-            for(int i=0;i<5;i++) {
+            int trailerCounts = movieInfoJSON.getJSONArray(ARRAY).length();
+            if ( trailerCounts == 0 )
+                return;
+
+            for(int i=0;i<trailerCounts;i++) {
                 ContentValues trailerValues = new ContentValues();
 
                 String movieId = movieInfoJSON.getString(MOVIE_ID);
@@ -380,11 +384,11 @@ public class MovieSyncAdapter extends AbstractThreadedSyncAdapter {
         try{
             JSONObject movieInfoJSON = new JSONObject(movieJsonStr);
 
-            int reviewCount = movieInfoJSON.getInt(TOTAL_RESULTS);
-            if (reviewCount > 5)
-                reviewCount=5;
+            int reviewCounts = movieInfoJSON.getJSONArray(ARRAY).length();
+            if ( reviewCounts == 0 )
+                return;
 
-            for(int i=0;i<reviewCount;i++) {
+            for(int i=0;i<reviewCounts;i++) {
                 ContentValues reviewValues = new ContentValues();
 
                 String movieId = movieInfoJSON.getString(MOVIE_ID);
@@ -394,6 +398,7 @@ public class MovieSyncAdapter extends AbstractThreadedSyncAdapter {
                 reviewValues.put(MovieContract.ReviewEntry.COLUMN_MOVIE_ID,movieId);
                 reviewValues.put(MovieContract.ReviewEntry.COLUMN_AUTHOR,author);
                 reviewValues.put(MovieContract.ReviewEntry.COLUMN_CONTENT,content);
+
 
                 Uri uri = mContext.getContentResolver().insert(
                         MovieContract.ReviewEntry.CONTENT_URI,
@@ -429,89 +434,7 @@ public class MovieSyncAdapter extends AbstractThreadedSyncAdapter {
         }
     }
 
-    /*
-    private void notifyWeather() {
-        Context context = getContext();
-        //checking the last update and notify if it' the first of the day
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        String displayNotificationsKey = context.getString(R.string.pref_enable_notifications_key);
-        boolean displayNotifications = prefs.getBoolean(displayNotificationsKey,
-                Boolean.parseBoolean(context.getString(R.string.pref_enable_notifications_default)));
 
-        if ( displayNotifications ) {
-
-            String lastNotificationKey = context.getString(R.string.pref_last_notification);
-            long lastSync = prefs.getLong(lastNotificationKey, 0);
-
-            if (System.currentTimeMillis() - lastSync >= DAY_IN_MILLIS) {
-                // Last sync was more than 1 day ago, let's send a notification with the weather.
-                String locationQuery = Utility.getPreferredLocation(context);
-
-                Uri weatherUri = WeatherContract.WeatherEntry.buildWeatherLocationWithDate(locationQuery, System.currentTimeMillis());
-
-                // we'll query our contentProvider, as always
-                Cursor cursor = context.getContentResolver().query(weatherUri, NOTIFY_WEATHER_PROJECTION, null, null, null);
-
-                if (cursor.moveToFirst()) {
-                    int weatherId = cursor.getInt(INDEX_WEATHER_ID);
-                    double high = cursor.getDouble(INDEX_MAX_TEMP);
-                    double low = cursor.getDouble(INDEX_MIN_TEMP);
-                    String desc = cursor.getString(INDEX_SHORT_DESC);
-
-                    int iconId = Utility.getIconResourceForWeatherCondition(weatherId);
-                    Resources resources = context.getResources();
-                    Bitmap largeIcon = BitmapFactory.decodeResource(resources,
-                            Utility.getArtResourceForWeatherCondition(weatherId));
-                    String title = context.getString(R.string.app_name);
-
-                    // Define the text of the forecast.
-                    String contentText = String.format(context.getString(R.string.format_notification),
-                            desc,
-                            Utility.formatTemperature(context, high),
-                            Utility.formatTemperature(context, low));
-
-                    // NotificationCompatBuilder is a very convenient way to build backward-compatible
-                    // notifications.  Just throw in some data.
-                    NotificationCompat.Builder mBuilder =
-                            new NotificationCompat.Builder(getContext())
-                                    .setColor(resources.getColor(R.color.sunshine_light_blue))
-                                    .setSmallIcon(iconId)
-                                    .setLargeIcon(largeIcon)
-                                    .setContentTitle(title)
-                                    .setContentText(contentText);
-
-                    // Make something interesting happen when the user clicks on the notification.
-                    // In this case, opening the app is sufficient.
-                    Intent resultIntent = new Intent(context, MainActivity.class);
-
-                    // The stack builder object will contain an artificial back stack for the
-                    // started Activity.
-                    // This ensures that navigating backward from the Activity leads out of
-                    // your application to the Home screen.
-                    TaskStackBuilder stackBuilder = TaskStackBuilder.create(context);
-                    stackBuilder.addNextIntent(resultIntent);
-                    PendingIntent resultPendingIntent =
-                            stackBuilder.getPendingIntent(
-                                    0,
-                                    PendingIntent.FLAG_UPDATE_CURRENT
-                            );
-                    mBuilder.setContentIntent(resultPendingIntent);
-
-                    NotificationManager mNotificationManager =
-                            (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-                    // WEATHER_NOTIFICATION_ID allows you to update the notification later on.
-                    mNotificationManager.notify(WEATHER_NOTIFICATION_ID, mBuilder.build());
-
-                    //refreshing last sync
-                    SharedPreferences.Editor editor = prefs.edit();
-                    editor.putLong(lastNotificationKey, System.currentTimeMillis());
-                    editor.commit();
-                }
-                cursor.close();
-            }
-        }
-    }
-    */
 
     /**
      * Helper method to schedule the sync adapter periodic execution

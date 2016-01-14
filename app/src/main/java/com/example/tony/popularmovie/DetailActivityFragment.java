@@ -55,12 +55,9 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     public DetailActivityFragment() {  }
 
     private static final int DETAIL_LOADER = 0;
-    private static final int REVIEW_LOADER = 1;
-    private static final int TRAILER_LOADER = 2;
+    private static final int TRAILER_LOADER = 1;
 
     private static final String MOVIE_SHARE_HASHTAG = " #Pop Movie";
-    private String mSharedTrailerURL;
-    private String mSharedTrailerTitle;
     private ShareActionProvider mShareActionProvider;
 
     public static String PREFS_NAME = "SORT_BY";
@@ -169,8 +166,10 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
     @Override
     public void onResume() {
-        getLoaderManager().restartLoader(DETAIL_LOADER, null, this);
-        getLoaderManager().restartLoader(TRAILER_LOADER, null, this);
+        if(null!=mMovieId){
+            getLoaderManager().restartLoader(DETAIL_LOADER, null, this);
+            getLoaderManager().restartLoader(TRAILER_LOADER, null, this);
+            }
         super.onResume();
     }
 
@@ -178,34 +177,6 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        Bundle arguments = getArguments();
-        if (arguments != null) {
-           mMovieId = arguments.getString("movieID");
-        }
-        else
-        {
-            SharedPreferences settings = getActivity().getSharedPreferences(PREFS_NAME, 0);
-            String sortBy = settings.getString(PREFS_NAME, "popularity.desc");
-            Cursor cursor;
-            switch (sortBy){
-                case "popularity.desc":
-                    cursor = getActivity().getContentResolver().query(MovieContract.PopularEntry.CONTENT_URI,POP_COLUMNS,null,null,null);
-                    break;
-                case "vote_average.desc":
-                    cursor = getActivity().getContentResolver().query(MovieContract.RatingEntry.CONTENT_URI,RATING_COLUMNS,null,null,null);
-                    break;
-                case "Favorite":
-                    cursor = getActivity().getContentResolver().query(MovieContract.FavoriteEntry.CONTENT_URI,FAVORITE_COLUMNS,null,null,null);
-                    break;
-                default:
-                    cursor = null;
-                    break;
-            }
-
-            if(cursor.moveToFirst())
-                mMovieId = cursor.getString(COL_MOVIE_ID);
-            cursor.close();
-        }
 
         mTrailerAdapter = new TrailerAdapter(getActivity(),null,0);
 
@@ -241,6 +212,16 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
             }
         });
+
+        Bundle arguments = getArguments();
+        if (arguments != null) {
+            trailerListView.setVisibility(View.VISIBLE);
+            mMovieId = arguments.getString("movieID");
+        }
+        else
+        {
+            trailerListView.setVisibility(View.GONE);
+        }
 
         return rootView;
     }
@@ -298,132 +279,114 @@ public class DetailActivityFragment extends Fragment implements LoaderManager.Lo
 
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        if(null!=mMovieId) {
+            switch (id) {
+                case DETAIL_LOADER:
+                    SharedPreferences settings = getActivity().getSharedPreferences(PREFS_NAME, 0);
+                    String sortBy = settings.getString(PREFS_NAME, "popularity.desc");
 
-        switch(id) {
-            case DETAIL_LOADER:
-                SharedPreferences settings = getActivity().getSharedPreferences(PREFS_NAME, 0);
-                String sortBy = settings.getString(PREFS_NAME, "popularity.desc");
-
-                if(mMovieId == null)
+                    switch (sortBy) {
+                        case "popularity.desc":
+                            return new CursorLoader(
+                                    getActivity(),
+                                    MovieContract.PopularEntry.CONTENT_URI,
+                                    POP_COLUMNS,
+                                    MovieContract.PopularEntry.COLUMN_MOVIE_ID + " = ? ",
+                                    new String[]{mMovieId},
+                                    null
+                            );
+                        case "vote_average.desc":
+                            return new CursorLoader(
+                                    getActivity(),
+                                    MovieContract.RatingEntry.CONTENT_URI,
+                                    RATING_COLUMNS,
+                                    MovieContract.PopularEntry.COLUMN_MOVIE_ID + " = ? ",
+                                    new String[]{mMovieId},
+                                    null
+                            );
+                        case "Favorite":
+                            return new CursorLoader(
+                                    getActivity(),
+                                    MovieContract.FavoriteEntry.CONTENT_URI,
+                                    FAVORITE_COLUMNS,
+                                    MovieContract.PopularEntry.COLUMN_MOVIE_ID + " = ? ",
+                                    new String[]{mMovieId},
+                                    null
+                            );
+                        default:
+                            return null;
+                    }
+                case TRAILER_LOADER:
+                    return new CursorLoader(
+                            getActivity(),
+                            MovieContract.VideoEntry.CONTENT_URI,
+                            VIDEO_COLUMNS,
+                            MovieContract.VideoEntry.COLUMN_MOVIE_ID + " = ? ",
+                            new String[]{mMovieId},
+                            null
+                    );
+                default:
                     return null;
-
-                switch (sortBy) {
-                    case "popularity.desc":
-                        return new CursorLoader(
-                                getActivity(),
-                                MovieContract.PopularEntry.CONTENT_URI,
-                                POP_COLUMNS,
-                                MovieContract.PopularEntry.COLUMN_MOVIE_ID + " = ? ",
-                                new String[]{mMovieId},
-                                null
-                         );
-                    case "vote_average.desc":
-                        return new CursorLoader(
-                                getActivity(),
-                                MovieContract.RatingEntry.CONTENT_URI,
-                                RATING_COLUMNS,
-                                MovieContract.PopularEntry.COLUMN_MOVIE_ID + " = ? ",
-                                new String[]{mMovieId},
-                                null
-                        );
-                    case "Favorite":
-                        return new CursorLoader(
-                                getActivity(),
-                                MovieContract.FavoriteEntry.CONTENT_URI,
-                                FAVORITE_COLUMNS,
-                                MovieContract.PopularEntry.COLUMN_MOVIE_ID + " = ? ",
-                                new String[]{mMovieId},
-                                null
-                        );
-                    default:
-                        return null;
-                }
-            case REVIEW_LOADER:
-                return new CursorLoader(
-                        getActivity(),
-                        MovieContract.ReviewEntry.CONTENT_URI,
-                        REVIEW_COLUMNS,
-                        MovieContract.ReviewEntry.COLUMN_MOVIE_ID + " = ? ",
-                        new String[]{mMovieId},
-                        null
-                );
-            case TRAILER_LOADER:
-                return new CursorLoader(
-                        getActivity(),
-                        MovieContract.VideoEntry.CONTENT_URI,
-                        VIDEO_COLUMNS,
-                        MovieContract.VideoEntry.COLUMN_MOVIE_ID + " = ? ",
-                        new String[]{mMovieId},
-                        null
-                );
-
-            default:
-                return null;
+            }
         }
+        return null;
     }
 
     @TargetApi(11)
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        if(null!=mMovieId && data.moveToFirst()) {
+            switch (loader.getId()) {
+                case DETAIL_LOADER:
 
-        switch(loader.getId()) {
-            case DETAIL_LOADER:
+                    sMovieId = data.getString(COL_MOVIE_ID);
+                    sMovieTitle = data.getString(COL_TITLE);
+                    sReleaseDate = data.getString(COL_RELEASE);
+                    sMoviePoster = data.getString(COL_POSTER);
+                    sVoteAverage = data.getString(COL_VOTE);
+                    sPlotSynopsis = data.getString(COL_PLOT);
+                    sPopularity = data.getString(COL_POPULARITY);
 
-                if(!data.moveToFirst())
-                    return;
+                    Cursor cursor = getActivity().getContentResolver().query(
+                            MovieContract.FavoriteEntry.CONTENT_URI,
+                            FAVORITE_COLUMNS,
+                            MovieContract.FavoriteEntry.COLUMN_MOVIE_ID + " = ? ",
+                            new String[]{mMovieId},
+                            null
+                    );
+                    if (cursor.moveToFirst())
+                        mCheckBox.setChecked(true);
+                    else
+                        mCheckBox.setChecked(false);
 
-                sMovieId = data.getString(COL_MOVIE_ID);
-                sMovieTitle = data.getString(COL_TITLE) ;
-                sReleaseDate = data.getString(COL_RELEASE);
-                sMoviePoster = data.getString(COL_POSTER);
-                sVoteAverage = data.getString(COL_VOTE);
-                sPlotSynopsis = data.getString(COL_PLOT);
-                sPopularity = data.getString(COL_POPULARITY);
+                    cursor.close();
 
-                Cursor cursor = getActivity().getContentResolver().query(
-                        MovieContract.FavoriteEntry.CONTENT_URI,
-                        FAVORITE_COLUMNS,
-                        MovieContract.FavoriteEntry.COLUMN_MOVIE_ID + " = ? ",
-                        new String[]{mMovieId},
-                        null
-                );
-                if (cursor.moveToFirst())
-                    mCheckBox.setChecked(true);
-                else
-                    mCheckBox.setChecked(false);
-
-                cursor.close();
-
-                mCheckBox.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        CheckBox c = (CheckBox) v;
-                        if (c.isChecked()) {
-                            insertFavorite();
-                        } else {
-                            deleteFavorite();
+                    mCheckBox.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            CheckBox c = (CheckBox) v;
+                            if (c.isChecked()) {
+                                insertFavorite();
+                            } else {
+                                deleteFavorite();
+                            }
                         }
-                    }
-                });
+                    });
 
-                mTitle.setText(sMovieTitle);
-                mReleaseDate.setText(sReleaseDate);
-                mRatings.setText(sVoteAverage);
-                mOverview.setText(sPlotSynopsis);
-                Picasso.with(getActivity())
-                        .load("file://" + getActivity().getExternalCacheDir().getAbsolutePath() + sMoviePoster)
-                        .into(mPoster);
+                    mTitle.setText(sMovieTitle);
+                    mReleaseDate.setText(sReleaseDate);
+                    mRatings.setText(sVoteAverage);
+                    mOverview.setText(sPlotSynopsis);
+                    Picasso.with(getActivity())
+                            .load("file://" + getActivity().getExternalCacheDir().getAbsolutePath() + sMoviePoster)
+                            .into(mPoster);
 
-                break;
-            case TRAILER_LOADER:
-                if(!data.moveToFirst())
-                    return;
-                sKey = data.getString(COL_KEY);
-                //mSharedTrailerURL = BASE_YOUTUBE_URL+sKey;
-                //mSharedTrailerTitle = sMovieTitle;
-                mTrailerAdapter.swapCursor(data);
-                break;
-
+                    break;
+                case TRAILER_LOADER:
+                    sKey = data.getString(COL_KEY);
+                    mTrailerAdapter.swapCursor(data);
+                    break;
+            }
         }
     }
 

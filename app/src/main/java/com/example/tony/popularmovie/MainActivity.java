@@ -62,8 +62,6 @@ public class MainActivity extends AppCompatActivity implements MainActivityFragm
             DetailActivityFragment fragment = new DetailActivityFragment();
             fragment.setArguments(args);
 
-            Log.d("MainActivity fragment",fragment.getArguments().getString("movieID"));
-
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.movie_detail_container, fragment, DETAIL_FRAGMENT_TAG)
                     .commit();
